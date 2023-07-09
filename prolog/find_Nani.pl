@@ -31,6 +31,7 @@ tastes_yucky(broccoli).
 % 最后，定义手电筒的状态和玩家的初始位置
 turned_off(flashlight).
 here(kitchen).
+:-dynamic here/1.
 
 where_food(X,Y):-location(X,Y),edible(X).
 
@@ -49,3 +50,66 @@ list_connections(_).
 look:- here(Place), write('You are in the '), write(Place), nl, 
 write('You can see: '), nl, list_things(Place), 
 write('You can go to: '), nl, list_connections(Place).
+
+% 编写移动的命令
+goto(Place):- can_go(Place), move(Place), look.
+
+can_go(Place):- here(X), connect(X, Place).
+can_go(_Place):- write('you can\'t get there from here.'), nl, fail.
+
+move(Place):- retract(here(_X)), asserta(here(Place)).
+
+% 编写拿取和丢弃
+take(X):- can_take(X), take_object(X).
+
+can_take(Thing):- here(Place), location(Thing, Place).
+can_take(Thing):- write("there is no "), write(Thing), write(" here."), nl, fail.
+
+:-dynamic location/2.
+take_object(Thing):- retract(location(Thing,_)), asserta(have(Thing)), write('taken'), nl.
+
+
+% 用结构描述物品的颜色、大小以及重量
+% object(candle, red, small, 1).
+% object(apple, red, small, 1).
+% object(apple, green, small, 1).
+% object(table, blue, big, 50).
+
+% 再定义一个谓词location_s/2
+location_s(object(apple, red, small, 1), kitchen).
+location_s(object(apple, green, small, 1), kitchen).
+location_s(object(table, blue, big, 50), kitchen).
+
+can_take_s(Thing) :- here(Room), location_s(object(Thing,_,small,_),Room).
+can_take_s(Thing) :- here(Room), location_s(object(Thing,_,big,_),Room),
+write('It\'s too big to carry.'), nl, fail.
+can_take_s(Thing) :- here(Room), not(location_s(object(Thing,_,_,_),Room)),
+write('There is no '), write(Thing), write(' here.'), nl, fail.
+
+list_things_s(Place) :- location_s(object(Thing, Color, Size, Weight),Place),
+write('A '),write(Size),tab(1),
+write(Color),tab(1),
+write(Thing), write(', weighing '),
+write(Weight), write(' pounds'), nl,
+fail.
+list_things_s(_).
+
+loc_list([apple, broccoli, crackers], kitchen).
+loc_list([desk, computer], office).
+loc_list([flashlight, envelope], desk).
+loc_list([stamp, key], envelope).
+loc_list(['washing machine'], cellar).
+loc_list([nani], 'washing machine').
+
+add_thing(NewThing,Container,NewList):-loc_list(OldList,Container),append([NewThing],OldList,NewList).
+add_thing2(NewThing,Container,NewList):-NewList=[NewThing|OldList],loc_list(OldList,Container).
+add_thing3(NewThing,Container,[NewThing|OldList]):-loc_list(OldList,Container).
+
+:-dynamic loc_list/2.  
+put_thing(Thing,Place):-retract(loc_list(List,Place)),asserta(loc_list([Thing|List],Place)).
+
+puzzle(goto(cellar)) :-
+    have(apple),
+    write('Success').
+    % turned_on(flashlight),
+    % ! .
