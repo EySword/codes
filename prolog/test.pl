@@ -24,3 +24,20 @@ no_cut_2(_X,_Y) :- write('End').
 do_cut_2(X,Y) :- 
     data(X), !, data(Y).
 do_cut_2(_X,_Y) :- write('End').
+
+command_loop:-
+    repeat,
+    write('Enter command (end to exit): '),
+    read(X),
+    write(X), nl,
+    X = end.
+
+loop:-
+    write('H'),
+    repeat,
+    write('Enter command (end to exit): '),
+    read(X),
+    write(X), nl,
+    q=end,
+    write('here. '),
+    end=end.
