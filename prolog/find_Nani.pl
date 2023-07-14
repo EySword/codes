@@ -108,8 +108,14 @@ add_thing3(NewThing,Container,[NewThing|OldList]):-loc_list(OldList,Container).
 :-dynamic loc_list/2.  
 put_thing(Thing,Place):-retract(loc_list(List,Place)),asserta(loc_list([Thing|List],Place)).
 
-puzzle(goto(cellar)) :-
-    have(apple),
-    write('Success').
-    % turned_on(flashlight),
-    % ! .
+puzzle(goto(cellar)):-
+    have(flashlight),
+    turned_on(flashlight),
+    !.
+puzzle(_).
+
+goto_2(Place) :-
+    puzzle(goto(Place)),
+    can_go(Place),
+    move(Place),
+    look.
