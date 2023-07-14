@@ -18,16 +18,12 @@ factorial_2(N,F,X) :-
 % 列表元素倒置
 
 naive_reverse([],[]).
-naive_reverse([H|T],X) :- 
-    naive_reverse(T,TR),
-    append(TR,[H],X).
+naive_reverse([H|T],X) :-
+    naive_reverse(T,Temp),
+    append(Temp,[H],X).
 
+reverse(OldList,X) :- reverse(OldList,[],X).
 reverse([],X,X).
 reverse([H|T],Temp,X) :-
     reverse(T,[H|Temp],X).
-
-reverse_2([],[]).
-reverse_2([H|T],X) :- 
-    append(TR,[H],X),
-    reverse_2(T,TR).
     
