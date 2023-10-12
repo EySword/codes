@@ -1,5 +1,5 @@
-select(X,[X|Xs],Xs) :- write('1').
-select(X,[Y|Ys],[Y|Zs]) :- write('2'), select(X,Ys,Zs).
+parse():-parse(X,Y).
+parse(X,Y):-read(X).
+parse(X,[Y|Z]):-delta(Y,Z), write(X).
 
-maximum(X,Y,X) :- X >= Y.
-maximum(X,Y,Y) :- Y >= X.
+delta(a,b).

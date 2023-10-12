@@ -2,6 +2,8 @@
 
 :- module(metagol,[learn/2,learn/3,learn_seq/2,pprint/1,op(950,fx,'@')]).
 
+% learn/2 和 learn/3 谓词是元归纳学习的入口点，用于学习逻辑程序。learn/2 会输出学习到的程序，而 learn/3 将学习到的程序存储在一个名为 Prog 的变量中。
+
 :- dynamic
     ibk/3,
     functional/0,
@@ -29,6 +31,8 @@ learn(_,_,_):-!,
     writeln('% unable to learn a solution'),
     false.
 
+% proveall/3 和 prove_examples/7 用于生成和验证正例的程序
+
 proveall(Atoms,Sig,Prog):-
     target_predicate(Atoms,P/A),
     format('% learning ~w\n',[P/A]),
@@ -48,9 +52,13 @@ prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
     check_functional([Atom],Sig,Prog3),
     prove_examples(Atoms,FullSig,Sig,MaxN,N3,N2,Prog3,Prog2).
 
+% deduce_atom/3 用于推断一个原子是否在给定的程序中。
+
 deduce_atom(Atom,Sig,Prog):-
     length(Prog,N),
     prove([Atom],Sig,_,N,N,N,Prog,Prog).
+
+% prove/8 用于验证一个原子是否能够通过给定的程序中的规则来推导出。
 
 prove([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog).
 prove([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
@@ -103,6 +111,8 @@ make_atoms(Atoms1,Atoms2):-
 make_atom([P|Args],p(P,A,Args,[])):-
     length(Args,A).
 
+% check_functional/3 用于检查程序的功能性
+
 check_functional(Atoms,Sig,Prog):-
     (functional ->
         forall(member(Atom1,Atoms),
@@ -113,6 +123,8 @@ check_functional(Atoms,Sig,Prog):-
             deduce_atom(TestAtom1,Sig,Prog),
             \+ call(Condition)));
         true).
+
+% check_recursion/4 用于检查递归规则
 
 check_recursion(false,_,_,_).
 check_recursion(true,MaxN,Atom,Path):-
@@ -230,6 +242,8 @@ invented_symbols(MaxClauses,P/A,[sym(P,A,_U)|Sig]):-
     max_inv_preds(MaxInvPreds),
     M is min(NumSymbols,MaxInvPreds),
     findall(sym(Sym1,_Artiy,_Used1),(between(1,M,I),atomic_list_concat([P,'_',I],Sym1)),Sig).
+
+% pprint/1 用于打印学习到的程序。
 
 pprint(Prog1):-
     reverse(Prog1,Prog3),
