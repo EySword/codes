@@ -2,8 +2,9 @@
 
 :- module(metagol,[learn/2,learn/3,learn_seq/2,pprint/1,op(950,fx,'@')]).
 
-% learn/2 和 learn/3 谓词是元归纳学习的入口点，用于学习逻辑程序。learn/2 会输出学习到的程序，而 learn/3 将学习到的程序存储在一个名为 Prog 的变量中。
 
+
+% 这6个谓词是动态的
 :- dynamic
     ibk/3,
     functional/0,
@@ -12,7 +13,14 @@
     body_pred_call/2,
     compiled_pred_call/2.
 
+
+% 最大子句的长度为10
+
 default(max_clauses(10)).
+
+
+
+% learn为MIL的入口，learn/2输出学到的程序，learn/3将学到的程序储存在Prog中
 
 learn(Pos,Neg):-
     learn(Pos,Neg,Prog),
@@ -30,6 +38,7 @@ learn(Pos1,Neg1,Prog):-
 learn(_,_,_):-!,
     writeln('% unable to learn a solution'),
     false.
+
 
 % proveall/3 和 prove_examples/7 用于生成和验证正例的程序
 
@@ -155,11 +164,17 @@ assert_sig_types(Sig):-
     forall((member(sym(P,A,_),Sig),\+type(P,A,head_pred)),
         assert(type(P,A,head_pred))).
 
+% head_preds 的目的是初始化头部谓词的设置。
+% 它会检查用户定义的头部谓词，并为每个符合条件的头部谓词添加一个标记，以便在后续的学习过程中使用
+% \+type(P,A,head_pred)：如果谓词 P/A 没有被标记为 head_pred 类型，即条件为真（true），否则返回假（false）
+
 head_preds:-
     %% remove old invented predicates (not that it really matters)
     retractall(type(_,_,head_pred)),
     forall((user:head_pred(P/A),\+type(P,A,head_pred)),
         assert(type(P,A,head_pred))).
+
+%  findall/3 查找用户定义的体谓词，并将它们存储在S0列表中
 
 body_preds:-
     retractall(type(_,_,body_pred)),
@@ -219,12 +234,26 @@ set_option(Option):-
     retractall(Retract),
     assert(Option).
 
+% setup初始化MIL的框架
+
+% option用于设置学习参数（最小子句数、最大子句数以及最大发明的预测谓词数）
+
+% head/body_preds：这两个谓词用于初始化头部谓词和体谓词。
+% 它们会根据用户定义的谓词规则，将谓词和它们的参数类型添加到程序中。
+% 这些信息在学习过程中用于生成元规则和验证学习到的程序。
+
+% IBK 是用于学习的背景知识，它描述了先验知识中的一些关系
+
+% compiled_preds：初始化编译谓词，即已经编译的谓词
+
 setup:-
     options,
     head_preds,
     body_preds,
     ibk_head_preds,
     compiled_preds.
+
+
 
 iterator(N):-
     min_clauses(MinN),
