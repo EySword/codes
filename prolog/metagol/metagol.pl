@@ -28,7 +28,7 @@ learn(Pos,Neg):-
 
 learn(Pos1,Neg1,Prog):-
     setup,
-    make_atoms(Pos1,Pos2),
+    make_atoms(Pos1,Pos2), % Pos2的结构为[p(谓词名称,元数,参数,[])]
     make_atoms(Neg1,Neg2),
     proveall(Pos2,Sig,Prog),
     nproveall(Neg2,Sig,Prog),
@@ -43,12 +43,12 @@ learn(_,_,_):-!,
 % proveall/3 和 prove_examples/7 用于生成和验证正例的程序
 
 proveall(Atoms,Sig,Prog):-
-    target_predicate(Atoms,P/A),
+    target_predicate(Atoms,P/A), % Atoms的形式为p/4，将其定义为了P/A
     format('% learning ~w\n',[P/A]),
-    iterator(MaxN),
+    iterator(MaxN),  %  between(Min,Max,MaxN)
     format('% clauses: ~d\n',[MaxN]),
-    invented_symbols(MaxN,P/A,Sig),
-    assert_sig_types(Sig),
+    invented_symbols(MaxN,P/A,Sig), % sig:[sym(P, A, _)]
+    assert_sig_types(Sig), % 如果输入的sig满足格式且不在type\3里，则加入
     prove_examples(Atoms,Sig,_Sig,MaxN,0,_N,[],Prog).
 
 prove_examples([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog).
@@ -234,24 +234,18 @@ set_option(Option):-
     retractall(Retract),
     assert(Option).
 
-% setup初始化MIL的框架
-
-% option用于设置学习参数（最小子句数、最大子句数以及最大发明的预测谓词数）
 
 % head/body_preds：这两个谓词用于初始化头部谓词和体谓词。
 % 它们会根据用户定义的谓词规则，将谓词和它们的参数类型添加到程序中。
 % 这些信息在学习过程中用于生成元规则和验证学习到的程序。
 
-% IBK 是用于学习的背景知识，它描述了先验知识中的一些关系
-
-% compiled_preds：初始化编译谓词，即已经编译的谓词
-
-setup:-
-    options,
+setup:- % setup初始化MIL的框架
+    options, % option用于设置学习参数（最小子句数、最大子句数以及最大发明的预测谓词数）
     head_preds,
     body_preds,
-    ibk_head_preds,
-    compiled_preds.
+    ibk_head_preds, % IBK 是用于学习的背景知识，它描述了先验知识中的一些关系
+    compiled_preds. % compiled_preds：初始化编译谓词，即已经编译的谓词
+
 
 
 
@@ -266,11 +260,12 @@ target_predicate([p(P,A,_Args,[])|_],P/A).
 %%     findall(P/A, member([p(inv,P,A,_Args,_Atom,[])],Atoms), Preds1),
 %%     list_to_set(Preds1,Preds2).
 
-invented_symbols(MaxClauses,P/A,[sym(P,A,_U)|Sig]):-
-    NumSymbols is MaxClauses-1,
-    max_inv_preds(MaxInvPreds),
-    M is min(NumSymbols,MaxInvPreds),
+invented_symbols(MaxClauses,P/A,[sym(P,A,_U)|Sig]):- % 输出是一个由sym/3元素组成的列表"sym(name_1, _, _)"
+    NumSymbols is MaxClauses-1, % 要生成的符号的数量
+    max_inv_preds(MaxInvPreds), % 查询最大发明谓词数
+    M is min(NumSymbols,MaxInvPreds), % 要生成的符号数量
     findall(sym(Sym1,_Artiy,_Used1),(between(1,M,I),atomic_list_concat([P,'_',I],Sym1)),Sig).
+
 
 % pprint/1 用于打印学习到的程序。
 

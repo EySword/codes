@@ -1,5 +1,3 @@
-parse():-parse(X,Y).
-parse(X,Y):-read(X).
-parse(X,[Y|Z]):-delta(Y,Z), write(X).
+test(Sig):-findall(sym(Sym1,_Artiy,_Used1),(between(1,5,I),atomic_list_concat(['name','_',I],Sym1)),Sig).
 
-delta(a,b).
+test2(Sym1) :- between(1,5,I),atomic_list_concat(['name','_',I],Sym1).
