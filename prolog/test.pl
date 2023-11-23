@@ -1,3 +1,21 @@
-test(Sig):-findall(sym(Sym1,_Artiy,_Used1),(between(1,5,I),atomic_list_concat(['name','_',I],Sym1)),Sig).
+ifright(X):-
+    (
+        X > 0 ->
+        (
+            (X =:= 1, !);
+            (X >= 3, !)
+        );
+        (
+            write('smail than 0'),
+            fail
+        )
+    ),
+    write('should not be showed').
 
-test2(Sym1) :- between(1,5,I),atomic_list_concat(['name','_',I],Sym1).
+boot(X) :-
+    X > 0, X < 10 ->
+    (write(1));
+    (write(0)).
+
+comp(X) :-
+    X =:= (1,1).
