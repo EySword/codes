@@ -1,21 +1,20 @@
-ifright(X):-
-    (
-        X > 0 ->
-        (
-            (X =:= 1, !);
-            (X >= 3, !)
-        );
-        (
-            write('smail than 0'),
-            fail
-        )
-    ),
-    write('should not be showed').
+legal(_S,([],[])).
+legal(S,BL) :- % S=(C,R), BL=([C],[R])
+    legal_R(S,BL),
+    legal_C(S,BL),
+    legal_O(S,BL).
 
-boot(X) :-
-    X > 0, X < 10 ->
-    (write(1));
-    (write(0)).
+legal_R((_C,R),(_CL,RL)) :-
+    not_in(R,RL).
+legal_C((C,_R),(CL,_RL)) :-
+    not_in(C,CL).
+legal_O(_S,([],[])) :- !.
+legal_O((C,R),([CA|CL],[RA|RL])) :-
+    C-CA =\= R-RA,
+    C-CA =\= RA-R,
+    legal_O((C,R),(CL,RL)).
 
-comp(X) :-
-    X =:= (1,1).
+not_in(_X,[]) :- !.
+not_in(X,[F|L]) :- 
+    X \= F,
+    not_in(X,L).
