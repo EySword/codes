@@ -43,12 +43,12 @@ learn(_,_,_):-!,
 % proveall/3 和 prove_examples/7 用于生成和验证正例的程序
 
 proveall(Atoms,Sig,Prog):-
-    target_predicate(Atoms,P/A), % Atoms的形式为p/4，将其定义为了P/A
+    target_predicate(Atoms,P/A), % 将Atoms的形式从p(P,A,Args,[])转换为了P/A
     format('% learning ~w\n',[P/A]),
-    iterator(MaxN),  %  between(Min,Max,MaxN)
+    iterator(MaxN),  %  between(Min,Max,MaxN)，一个从MinN到MaxN的迭代生成器
     format('% clauses: ~d\n',[MaxN]),
     invented_symbols(MaxN,P/A,Sig), % sig:[sym(P, A, _)]
-    assert_sig_types(Sig), % 如果输入的sig满足格式且不在type\3里，则加入
+    assert_sig_types(Sig), % 将Sig内的sym/3标记为type:head_pred
     prove_examples(Atoms,Sig,_Sig,MaxN,0,_N,[],Prog).
 
 prove_examples([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog).
@@ -113,10 +113,10 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
 nproveall(Atoms,Sig,Prog):-
     forall(member(Atom,Atoms), \+ deduce_atom(Atom,Sig,Prog)).
 
+% 将输入的正例Pos1先转换为列表，再将每一个的形式从[P|Args]转换成p(P,A,Args,[]).
 make_atoms(Atoms1,Atoms2):-
     maplist(atom_to_list,Atoms1,Atoms3),
     maplist(make_atom,Atoms3,Atoms2).
-
 make_atom([P|Args],p(P,A,Args,[])):-
     length(Args,A).
 
@@ -182,6 +182,10 @@ body_preds:-
     findall(P/A,user:body_pred(P/A),S0),
     assert_body_preds(S0).
 
+% 这个函数就是由S1=[P/A,P/A...]生成：
+% type(P,A,body_pred)、
+% user:body_pred(P/A)、
+% body_pred_call(P,Args):-user:Atom
 assert_body_preds(S1):-
     forall(member(P/A,S1),(
         retractall(type(P,A,body_pred)),
@@ -198,7 +202,7 @@ assert_body_preds(S1):-
         )
     )).
 
-
+% 看起来是去重了
 ibk_head_preds:-
     findall(P/A,type(P,A,ibk_head_pred),S0),
     list_to_set(S0,S1),
@@ -228,7 +232,7 @@ options:-
     (current_predicate(max_clauses/1) -> true; (default(max_clauses(MaxN)),set_option(max_clauses(MaxN)))),
     (current_predicate(max_inv_preds/1) -> true; (max_clauses(MaxN),succ(MaxInv,MaxN),set_option(max_inv_preds(MaxInv)))).
 
-set_option(Option):-
+set_option(Option):- %先删除所有和Option同名的谓词，再生成新的Option谓词
     functor(Option,Name,Arity),
     functor(Retract,Name,Arity),
     retractall(Retract),
@@ -241,8 +245,9 @@ set_option(Option):-
 
 setup:- % setup初始化MIL的框架
     options, % option用于设置学习参数（最小子句数、最大子句数以及最大发明的预测谓词数）
-    head_preds,
-    body_preds,
+    head_preds, % 生成type（P，A，head_pred）样式的谓词头部
+    body_preds, % 生成 type(P,A,body_pred)、user:body_pred(P/A)、body_pred_call(P,Args):-user:Atom
+    % 下面两个看起来就是去重
     ibk_head_preds, % IBK 是用于学习的背景知识，它描述了先验知识中的一些关系
     compiled_preds. % compiled_preds：初始化编译谓词，即已经编译的谓词
 
@@ -260,7 +265,8 @@ target_predicate([p(P,A,_Args,[])|_],P/A).
 %%     findall(P/A, member([p(inv,P,A,_Args,_Atom,[])],Atoms), Preds1),
 %%     list_to_set(Preds1,Preds2).
 
-invented_symbols(MaxClauses,P/A,[sym(P,A,_U)|Sig]):- % 输出是一个由sym/3元素组成的列表"sym(name_1, _, _)"
+invented_symbols(MaxClauses,P/A,[sym(P,A,_U)|Sig]):- % 输出是一个由sym/3元素组成的列表
+% [sym(P,A,_U),sym(P_1,_A,_U),sym(P_2,_A,_U)...]
     NumSymbols is MaxClauses-1, % 要生成的符号的数量
     max_inv_preds(MaxInvPreds), % 查询最大发明谓词数
     M is min(NumSymbols,MaxInvPreds), % 要生成的符号数量
