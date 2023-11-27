@@ -28,7 +28,7 @@ learn(Pos,Neg):-
 
 learn(Pos1,Neg1,Prog):-
     setup,
-    make_atoms(Pos1,Pos2), % Pos2的结构为[p(谓词名称,元数,参数,[])]
+    make_atoms(Pos1,Pos2), % Pos2的结构为[p(谓词名称,元数,[参数],[])|...]
     make_atoms(Neg1,Neg2),
     proveall(Pos2,Sig,Prog),
     nproveall(Neg2,Sig,Prog),
@@ -42,18 +42,18 @@ learn(_,_,_):-!,
 
 % proveall/3 和 prove_examples/7 用于生成和验证正例的程序
 
-proveall(Atoms,Sig,Prog):-
-    target_predicate(Atoms,P/A), % 将Atoms的形式从p(P,A,Args,[])转换为了P/A
+proveall(Atoms,Sig,Prog):- % Atoms为[p(P,A,[Args],[])|...]
+    target_predicate(Atoms,P/A), % Atoms中谓词的形式是统一的target，这里提取出列这个统一的形式为P/A
     format('% learning ~w\n',[P/A]),
     iterator(MaxN),  %  between(Min,Max,MaxN)，一个从MinN到MaxN的迭代生成器
     format('% clauses: ~d\n',[MaxN]),
-    invented_symbols(MaxN,P/A,Sig), % sig:[sym(P, A, _)]
+    invented_symbols(MaxN,P/A,Sig), % Sig:[sym(P, A, _),sym(P_1,A,_),...]
     assert_sig_types(Sig), % 将Sig内的sym/3标记为type:head_pred
     prove_examples(Atoms,Sig,_Sig,MaxN,0,_N,[],Prog).
 
-prove_examples([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog).
+prove_examples([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog). % 输入的Atoms为空，返回空的Prog
 prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
-    deduce_atom(Atom,FullSig,Prog1),!,
+    deduce_atom(Atom,FullSig,Prog1),!, % Atom为p(P,A,[Args],[])
     check_functional([Atom],Sig,Prog1),
     prove_examples(Atoms,FullSig,Sig,MaxN,N1,N2,Prog1,Prog2).
 prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
@@ -63,38 +63,39 @@ prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
 
 % deduce_atom/3 用于推断一个原子是否在给定的程序中。
 
-deduce_atom(Atom,Sig,Prog):-
+deduce_atom(Atom,Sig,Prog):- % Atom为p(P,A,[Args],[])
     length(Prog,N),
     prove([Atom],Sig,_,N,N,N,Prog,Prog).
 
 % prove/8 用于验证一个原子是否能够通过给定的程序中的规则来推导出。
 
 prove([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog).
-prove([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
-    prove_aux(Atom,FullSig,Sig,MaxN,N1,N3,Prog1,Prog3),
+prove([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):- 
+    prove_aux(Atom,FullSig,Sig,MaxN,N1,N3,Prog1,Prog3), % Atom为p(P,A,[Args],[])
     prove(Atoms,FullSig,Sig,MaxN,N3,N2,Prog3,Prog2).
 
 prove_aux('@'(Atom),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- !,
-    user:call(Atom).
+    user:call(Atom). % 如果Atom符合'@'标记的形式，则直接call
 
-prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):-
-    nonvar(P),
-    type(P,A,compiled_pred),!,
-    compiled_pred_call(P,Args).
+prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- % compiled_pred情况下N和Prog直接回传
+    nonvar(P), % P需要绑定具体的值
+    type(P,A,compiled_pred),!, % 如果P/A已经是compiles_pred，则不再重复寻找?
+    compiled_pred_call(P,Args). % 运行P/A
 
-prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):-
-    (nonvar(P) -> type(P,A,body_pred); true),
+prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- % body_pred情况下N和Prog直接回传
+    (nonvar(P) -> type(P,A,body_pred); true), % 没太懂true的用途
     body_pred_call(P,Args).
 
 prove_aux(p(P,A,Args,Path),FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
-    (var(P) -> true; (\+ type(P,A,head_pred), !, type(P,A,ibk_head_pred))),
-    ibk([P|Args],Body,Path),
+    % 先判断是否是ibk_head_pred
+    (var(P) -> true; (\+ type(P,A,head_pred), !, type(P,A,ibk_head_pred))), 
+    ibk([P|Args],Body,Path), % 调用ibk
     prove(Body,FullSig,Sig,MaxN,N1,N2,Prog1,Prog2).
 
 prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     N1 \== 0,
     Atom = [P|Args],
-    select_lower(P,A,FullSig,Sig1,Sig2),
+    select_lower(P,A,FullSig,Sig1,Sig2), % 在FullSig中寻找sym(P,A,U)，Sig2为寻找到后，后面的列表
     member(sub(Name,P,A,Subs),Prog1),
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]),
     check_recursion(Recursive,MaxN,Atom,Path),
@@ -113,9 +114,9 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
 nproveall(Atoms,Sig,Prog):-
     forall(member(Atom,Atoms), \+ deduce_atom(Atom,Sig,Prog)).
 
-% 将输入的正例Pos1先转换为列表，再将每一个的形式从[P|Args]转换成p(P,A,Args,[]).
+% 将输入的正例Pos1先转换为列表，再将每一个的形式从[P|Args]转换成p(P,A,Args,[]). 其中Args为[a,b,c,...]
 make_atoms(Atoms1,Atoms2):-
-    maplist(atom_to_list,Atoms1,Atoms3),
+    maplist(atom_to_list,Atoms1,Atoms3), % Atoms3:[[P,a,b,c,...]|...]
     maplist(make_atom,Atoms3,Atoms2).
 make_atom([P|Args],p(P,A,Args,[])):-
     length(Args,A).
@@ -142,7 +143,7 @@ check_recursion(true,MaxN,Atom,Path):-
 
 select_lower(P,A,FullSig,_Sig1,Sig2):-
     nonvar(P),!,
-    append(_,[sym(P,A,_)|Sig2],FullSig),!.
+    append(_,[sym(P,A,_)|Sig2],FullSig),!. % 找sym(P,A,_)在FullSig中的位置
 select_lower(P,A,_FullSig,Sig1,Sig2):-
     append(_,[sym(P,A,U)|Sig2],Sig1),
     (var(U)-> !,fail;true ).
@@ -221,7 +222,7 @@ compiled_preds:-
             assert(type(P,A,compiled_pred)),
             functor(Atom,P,A),
             Atom =..[P|Args],
-            assert((compiled_pred_call(P,Args):-user:Atom))
+            assert((compiled_pred_call(P,Args):-user:Atom)) % 这里定义好了怎样运行P/A
         );
             format('% WARNING: ~w does not exist\n',[P/A])
         )
@@ -324,6 +325,7 @@ metarule_asserts(Name,Subs,Head,Body1,MetaBody,[metagol:MRule]):-
         MRule = metarule(AssertName,Subs,Head,Body2,Recursive,Path);
         MRule = (metarule(AssertName,Subs,Head,Body2,Recursive,Path):-MetaBody)).
 
+% 在运行ibk的时候，先调用ibk_asserts
 user:term_expansion((ibk(Head,Body):-IbkBody),(ibk(Head,Body):-IbkBody)):-
     ibk_asserts(Head,Body,IbkBody,[]).
 

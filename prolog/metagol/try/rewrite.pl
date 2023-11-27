@@ -20,7 +20,7 @@ proveall(Atoms,Sig,Prog) :-
     format('% clause: ~d\n',[MaxN]),
     invented_symbols(MaxN,P/A,Sig),
     assert_sig_types(Sig),
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    prove_examples(Atoms,Sig,_Sig,MaxN,0,_N,[],Prog).
 
 target_predicate([p(P,A,_Args,[])|_],P/A).
 %
@@ -40,7 +40,51 @@ invent_symbols(MaxClauses,P/A,[sym(P,A,_U)|Sig]) :-
 assert_sig_types(Sig) :-
     forall((member(sym(P,A,_),Sig),\+type(P,A,head_pred)),
         assert(type(P,A,head_pred))).
+%
+prove_examples([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog).
+prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2) :-
+    deduce_Atom(Atom,FullSig,Prog1)%%%%%%%%%
 
+
+
+
+
+%
+%
+deduce_atom(Atom,Sig,Prog) :-
+    length(Prog,N),
+    prove([Atom],Sig,_,N,N,N,Prog,Prog).
+%
+prove([],_FullSig,_Sig,_MaxN,N,N,Prog,Prpg).
+prove([Atmo|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2) :-
+    prove_aux(Atom,FullSig,Sig,MaxN,N1,N3,Prog1,Prog3),
+
+%
+prove_aux('@'(Atom),_FullSig,_Sig,_MaxN,N.N,Prog,Prog) :-
+    !,
+    user:call(Atom).
+prove_aux(p(P,A,Atgs,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog) :-
+    nonvar(P),
+    type(P,A,compiled_pred),!,
+    compiled_pred_call(P,Args).
+prove_aux(p(P,A,Atgs,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog) :-
+    (nonvar(P) ->
+        type(P,A,body_pred);
+        true),
+    body_pred_call(P,Args).
+prove_aux(p(P,A,Args,Path),FullSig,Sig,MaxN,N1,N2,Prog1,Prog2) :-
+    (var(P) ->
+        true;
+        (
+            \+type(P,A,head_pred), !,
+            type(P,A,ibk_head_pred)
+        )),
+    ibk([P|Args],Body,Path),
+    prove(Body,FullSig,Sig,MaxN,N1,N2,Prog1,Prog2).
+prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2) :-
+    N1 \== 0,
+    Atom = [P|Args],
+    select_lower(P,A,FullSig,Sig1,Sig2)
 %
 %
 setup :-
@@ -119,4 +163,16 @@ compiled_preds :-
             format('% Waring: ~w does not exist\n',[P/A])
         ))
     ).
-    %
+%
+%
+atom_to_list(Atom,AtomList) :- Atom =.. AtomList.
+%
+select_lower(P,A,FullSig,_Sig1,Sig2) :-
+    nonvar(P),!,
+    append(_,[sym(P,A,_)|Sig2],FullSig),!.
+select_lower(P,A,_FullSig,Sig1,Sig2) :-
+    append(_,[sym(P,A,U)|Sig2],Sig1),
+    (var(U) -> 
+        !,fail;
+        true
+    ).
