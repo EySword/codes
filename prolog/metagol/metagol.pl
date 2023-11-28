@@ -97,7 +97,7 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     Atom = [P|Args],
     select_lower(P,A,FullSig,Sig1,Sig2), % 在FullSig中寻找sym(P,A,U)，Sig2为寻找到后，后面的列表
     member(sub(Name,P,A,Subs),Prog1), % 好像一开始Prog1是空的，可能这里会失败？
-    metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]),
+    metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]), % Atom为形式化的metagol:MRule??
     check_recursion(Recursive,MaxN,Atom,Path),
     prove(Body,FullSig,Sig2,MaxN,N1,N2,Prog1,Prog2).
 
@@ -135,7 +135,6 @@ check_functional(Atoms,Sig,Prog):-
         true).
 
 % check_recursion/4 用于检查递归规则
-
 check_recursion(false,_,_,_).
 check_recursion(true,MaxN,Atom,Path):-
     MaxN \== 1, % need at least two clauses if we are using recursion
@@ -304,6 +303,7 @@ atom_to_list(Atom,AtomList):-
     Atom =..AtomList.
 
 %% build the internal metarule clauses
+% 上面调用metarule/6，这里生成metarule/6
 user:term_expansion(metarule(Subs,Head,Body),Asserts):-
     metarule_asserts(_Name,Subs,Head,Body,_MetaBody,Asserts).
 user:term_expansion(metarule(Name,Subs,Head,Body),Asserts):-
@@ -313,17 +313,30 @@ user:term_expansion((metarule(Subs,Head,Body):-MetaBody),Asserts):-
 user:term_expansion((metarule(Name,Subs,Head,Body):-MetaBody),Asserts):-
     metarule_asserts(Name,Subs,Head,Body,MetaBody,Asserts).
 
+%% metarule([P,Q,R], [P,A,B], [[Q,A,C],[R,C,B]]).
+% 通过这个，把：
+% Name变成序号
+% Body从Atom的形式转换为p/4
+% MetaBody根据是否存在生成或不生成
+% 返回metagol模块的metarule/6
 metarule_asserts(Name,Subs,Head,Body1,MetaBody,[metagol:MRule]):-
     Head = [P|_],
     is_recursive(Body1,P,Recursive), % 判断头部P是否在Body中（递归）, 返回为true/false
-    add_path_to_body(Body1,Path,Body2),
-    gen_metarule_id(Name,AssertName),
+    add_path_to_body(Body1,Path,Body2), % 将Atom形式转化为p/4, @标记的不变
+    gen_metarule_id(Name,AssertName), % 生成序号
     %% very hacky - I assert that all ground body predicates are compiled
     %% I filter these in the setup call
-    forall((member(p(P1,A1,_,_),Body2), ground(P1)), assert(type(P1,A1,compiled_pred))),
+    % 把Body2里的每一个p/4打上标记：compiled_pred
+    forall((member(p(P1,A1,_,_),Body2), ground(P1)), assert(type(P1,A1,compiled_pred))), 
     (var(MetaBody) ->
         MRule = metarule(AssertName,Subs,Head,Body2,Recursive,Path);
         MRule = (metarule(AssertName,Subs,Head,Body2,Recursive,Path):-MetaBody)).
+%% metarule(id:1, 
+    % Subs:[P,Q,R], 
+    % Head:[P,A,B], 
+    % Body2:[p(Q,2,[A,C],Path),p(R,2,[C,B],Path)],
+    % true/false,Path)
+
 
 % 在运行ibk的时候，先调用ibk_asserts
 user:term_expansion((ibk(Head,Body):-IbkBody),(ibk(Head,Body):-IbkBody)):-
@@ -352,18 +365,19 @@ is_recursive([_|T],P,Res):-
 add_path_to_body([],_Path,[]).
 add_path_to_body(['@'(Atom)|Atoms],Path,['@'(Atom)|Rest]):- % 如果已被标记为‘@’那么跳过
     add_path_to_body(Atoms,Path,Rest).
-add_path_to_body([[P|Args]|Atoms],Path,[p(P,A,Args,Path)|Rest]):-
+add_path_to_body([[P|Args]|Atoms],Path,[p(P,A,Args,Path)|Rest]):- % 将Atom转换为p/4的形式
     length(Args,A),
     add_path_to_body(Atoms,Path,Rest).
 
-gen_metarule_id(Name,Name):-
+% 但是这里排序是1,3,4,5,6... ？
+gen_metarule_id(Name,Name):- % Name是变量则失败
     ground(Name),!.
 gen_metarule_id(_Name,IdNext):-
-    current_predicate(metarule_next_id/1),!,
+    current_predicate(metarule_next_id/1),!, % 判断是否存在metarule_next_id/1
     metarule_next_id(Id),
     succ(Id,IdNext),
-    set_option(metarule_next_id(IdNext)).
-gen_metarule_id(_Name,1):-
+    set_option(metarule_next_id(IdNext)). % 将metarule_next_id加1
+gen_metarule_id(_Name,1):- % 第一次运行进入这里，返回当前
     set_option(metarule_next_id(2)).
 
 learn_seq(Seq,Prog):-

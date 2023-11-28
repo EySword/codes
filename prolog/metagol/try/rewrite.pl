@@ -86,7 +86,9 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2) :-
     Atom = [P|Args],
     select_lower(P,A,FullSig,Sig1,Sig2),
     member(sub(Name,P,A,Subs),Prog1),
-    metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path])
+    metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]),
+    check_recrusion(Recursive,MaxN,Atom,Path),
+    prove(Body,FullSig,Sig2,MaxN,N1,N2,Prog1,Prog2).
 %
 %
 setup :-
@@ -180,16 +182,29 @@ select_lower(P,A,_FullSig,Sig1,Sig2) :-
     ).
 %
 %
+user:term_expansion(metarule(Subs,Head,Body),Asserts):-
+    metarule_asserts(_Name,Subs,Head,Body,_MetaBody,Asserts).
+user:term_expansion(metarule(Name,Subs,Head,Body),Asserts):-
+    metarule_asserts(Name,Subs,Head,Body,_MetaBody,Asserts).
+user:term_expansion((metarule(Subs,Head,Body):-MetaBody),Asserts):-
+    metarule_asserts(_Name,Subs,Head,Body,MetaBody,Asserts).
+user:term_expansion((metarule(Name,Subs,Head,Body):-MetaBody),Asserts):-
+    metarule_asserts(Name,Subs,Head,Body,MetaBody,Asserts).
+%
 metarule_asserts(Name,Subs,Head,Body1,MetaBody,[metagol:MRule]) :-
     Head = [P|_],
     is_recrusive(Body1,P,Recrusive), 
-    add_path_to_body(Body1,Path,Body2),
+    add_path_to_body(Body1,Path,Body2), % 将Atom转换为p/4的形式，跳过@标记
+    gen_metarule_id(Name,AssertName),
+    forall(
+        (member(p(P1,A1,_,_),Body2), ground(P1)),
+        assert(type(P1,A1,compiled_pred))).
+    (var(MetaBody) ->
+        MRule = metarule(AssertName,Subs,Head,Body2,Recrusive,Path);
+        MRule = (metarule(AssertName,Subs,Head,Body2.Recrusive,Path) :- MetaBody)).
 
 
-
-
-
-%
+% [[Q,A,C],[R,C,B]]
 is_recrusive([],_,false).
 is_recrusive([[Q|_]|_],P,true) :-
     Q == P, !.
@@ -202,3 +217,18 @@ add_path_to_body(['@'(Atom)|Atoms],Path,['@'(Atom)|Rest]) :-
 add_path_to_body([[P|Args]|Atoms],Path,[p(P,A,Args,Path)|Rest]) :-
     length(Args,A),
     add_path_to_body(Atoms,Path,Rest).
+%
+gen_metarule_id(Name,Name) :-
+    ground(Name), !.
+gen_metarule_id(_Name,IdNext) :-
+    current_predicate(metarule_next_id/1), !,
+    metarule_next_id(Id),
+    succ(Id,IdNext),
+    set_option(metarule_next_id(IdNext)).
+gen_metarule_id(_Name,1) :-
+    set_option(metarule_next_id(2)).
+%
+check_recursion(false,_,_,_).
+check_recrusion(true,MaxN,Atom,Path) :-
+    MaxN \== 1,
+    \+memberchk(Atom,Path).
