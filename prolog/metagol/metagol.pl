@@ -96,7 +96,7 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     N1 \== 0,
     Atom = [P|Args],
     select_lower(P,A,FullSig,Sig1,Sig2), % 在FullSig中寻找sym(P,A,U)，Sig2为寻找到后，后面的列表
-    member(sub(Name,P,A,Subs),Prog1),
+    member(sub(Name,P,A,Subs),Prog1), % 好像一开始Prog1是空的，可能这里会失败？
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]),
     check_recursion(Recursive,MaxN,Atom,Path),
     prove(Body,FullSig,Sig2,MaxN,N1,N2,Prog1,Prog2).
@@ -315,7 +315,7 @@ user:term_expansion((metarule(Name,Subs,Head,Body):-MetaBody),Asserts):-
 
 metarule_asserts(Name,Subs,Head,Body1,MetaBody,[metagol:MRule]):-
     Head = [P|_],
-    is_recursive(Body1,P,Recursive),
+    is_recursive(Body1,P,Recursive), % 判断头部P是否在Body中（递归）, 返回为true/false
     add_path_to_body(Body1,Path,Body2),
     gen_metarule_id(Name,AssertName),
     %% very hacky - I assert that all ground body predicates are compiled
@@ -342,6 +342,7 @@ ibk_asserts(Head,Body1,IbkBody,[]):-
     %% I filter these in the setup call
     forall((member(p(P1,A1,_,_),Body2), ground(P1)), assert(type(P1,A1,compiled_pred))).
 
+% 判断是否递归
 is_recursive([],_,false).
 is_recursive([[Q|_]|_],P,true):-
     Q==P,!.
@@ -349,7 +350,7 @@ is_recursive([_|T],P,Res):-
     is_recursive(T,P,Res).
 
 add_path_to_body([],_Path,[]).
-add_path_to_body(['@'(Atom)|Atoms],Path,['@'(Atom)|Rest]):-
+add_path_to_body(['@'(Atom)|Atoms],Path,['@'(Atom)|Rest]):- % 如果已被标记为‘@’那么跳过
     add_path_to_body(Atoms,Path,Rest).
 add_path_to_body([[P|Args]|Atoms],Path,[p(P,A,Args,Path)|Rest]):-
     length(Args,A),

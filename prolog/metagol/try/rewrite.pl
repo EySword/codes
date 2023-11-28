@@ -84,7 +84,9 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig,MaxN,N1,N2,Prog1,Prog2) :-
 prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2) :-
     N1 \== 0,
     Atom = [P|Args],
-    select_lower(P,A,FullSig,Sig1,Sig2)
+    select_lower(P,A,FullSig,Sig1,Sig2),
+    member(sub(Name,P,A,Subs),Prog1),
+    metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path])
 %
 %
 setup :-
@@ -176,3 +178,27 @@ select_lower(P,A,_FullSig,Sig1,Sig2) :-
         !,fail;
         true
     ).
+%
+%
+metarule_asserts(Name,Subs,Head,Body1,MetaBody,[metagol:MRule]) :-
+    Head = [P|_],
+    is_recrusive(Body1,P,Recrusive), 
+    add_path_to_body(Body1,Path,Body2),
+
+
+
+
+
+%
+is_recrusive([],_,false).
+is_recrusive([[Q|_]|_],P,true) :-
+    Q == P, !.
+is_recrusive([_|T],P,Res) :-
+    is_recrusive(T,P,Res).
+%
+add_path_to_body([],_Path,[]).
+add_path_to_body(['@'(Atom)|Atoms],Path,['@'(Atom)|Rest]) :-
+    add_path_to_body(Atoms,Path,Rest).
+add_path_to_body([[P|Args]|Atoms],Path,[p(P,A,Args,Path)|Rest]) :-
+    length(Args,A),
+    add_path_to_body(Atoms,Path,Rest).
