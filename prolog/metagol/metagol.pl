@@ -24,11 +24,13 @@ default(max_clauses(10)).
 
 learn(Pos,Neg):-
     learn(Pos,Neg,Prog),
+    write('next is mainProg:\n'),
     pprint(Prog).
 
 learn(Pos1,Neg1,Prog):-
     setup,
     make_atoms(Pos1,Pos2), % Pos2的结构为[p(谓词名称,元数,[参数],[])|...]
+    format('It\'s Pos2:\n~w\n========\n',[Pos2]),
     make_atoms(Neg1,Neg2),
     proveall(Pos2,Sig,Prog),
     nproveall(Neg2,Sig,Prog),
@@ -140,6 +142,7 @@ check_recursion(true,MaxN,Atom,Path):-
     MaxN \== 1, % need at least two clauses if we are using recursion
     \+memberchk(Atom,Path).
 
+% P不是变量则在FullSig中找，P是变量则在Sig1中找
 select_lower(P,A,FullSig,_Sig1,Sig2):-
     nonvar(P),!,
     append(_,[sym(P,A,_)|Sig2],FullSig),!. % 找sym(P,A,_)在FullSig中的位置
@@ -147,7 +150,7 @@ select_lower(P,A,_FullSig,Sig1,Sig2):-
     append(_,[sym(P,A,U)|Sig2],Sig1),
     (var(U)-> !,fail;true ).
 
-bind_lower(P,A,FullSig,_Sig1,Sig2):-
+bind_lower(P,A,FullSig,_Sig1,Sig2):- % 判断sym[P,A,_]是否在FullSig中
     nonvar(P),!,
     append(_,[sym(P,A,_)|Sig2],FullSig),!.
 bind_lower(P,A,_FullSig,Sig1,Sig2):-

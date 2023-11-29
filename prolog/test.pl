@@ -1,3 +1,4 @@
-term_expansion(abc(Name),abc(Name,a,b)).
+square(X, Y) :- Y is X * X.
+delayed_square(X, Y) :- when(nonvar(X), square(X, Y)).
 
-abc(X).
+tes(X,Y) :- square(X,Y).
