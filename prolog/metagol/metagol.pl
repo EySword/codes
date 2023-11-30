@@ -24,15 +24,16 @@ default(max_clauses(10)).
 
 learn(Pos,Neg):-
     learn(Pos,Neg,Prog),
-    write('next is mainProg:\n'),
+    % write('next is mainProg:\n'),
     pprint(Prog).
 
 learn(Pos1,Neg1,Prog):-
     setup,
     make_atoms(Pos1,Pos2), % Pos2的结构为[p(谓词名称,元数,[参数],[])|...]
-    format('It\'s Pos2:\n~w\n========\n',[Pos2]),
+    % format('It\'s Pos2:\n~w\n========\n',[Pos2]),
     make_atoms(Neg1,Neg2),
     proveall(Pos2,Sig,Prog),
+    % writeChk('Prog',Prog),
     nproveall(Neg2,Sig,Prog),
     ground(Prog),
     check_functional(Pos2,Sig,Prog).
@@ -50,12 +51,15 @@ proveall(Atoms,Sig,Prog):- % Atoms为[p(P,A,[Args],[])|...]
     iterator(MaxN),  %  between(Min,Max,MaxN)，一个从MinN到MaxN的迭代生成器
     format('% clauses: ~d\n',[MaxN]),
     invented_symbols(MaxN,P/A,Sig), % Sig:[sym(P, A, _),sym(P_1,A,_),...]
+    % writeChk('Atoms',Atoms),
+    % writeChk('Sig',Sig),
     assert_sig_types(Sig), % 将Sig内的sym/3标记为type:head_pred
     prove_examples(Atoms,Sig,_Sig,MaxN,0,_N,[],Prog).
 
 prove_examples([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog). % 输入的Atoms为空，返回空的Prog
 prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
     deduce_atom(Atom,FullSig,Prog1),!, % Atom为p(P,A,[Args],[])
+    % 如果这里Atom在已有列表里则剪枝？
     check_functional([Atom],Sig,Prog1),
     prove_examples(Atoms,FullSig,Sig,MaxN,N1,N2,Prog1,Prog2).
 prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
@@ -64,7 +68,7 @@ prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
     prove_examples(Atoms,FullSig,Sig,MaxN,N3,N2,Prog3,Prog2).
 
 % deduce_atom/3 用于推断一个原子是否在给定的程序中。
-
+% 在Sig和Prog的环境下推导Atom？
 deduce_atom(Atom,Sig,Prog):- % Atom为p(P,A,[Args],[])
     length(Prog,N),
     prove([Atom],Sig,_,N,N,N,Prog,Prog).
@@ -105,8 +109,10 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
 
 prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     N1 \== MaxN,
+    format('N1:~w, MaxN:~w\n',[N1,MaxN]),
     Atom = [P|Args],
     bind_lower(P,A,FullSig,Sig1,Sig2),
+    format('>> bind lower: \n~w/~w: FullSig: ~w, Sig1: ~w, Sig2: ~w.\n',[P,A,FullSig,Sig1,Sig2]),
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]), % ??
     check_recursion(Recursive,MaxN,Atom,Path),
     check_new_metasub(Name,P,A,Subs,Prog1),
@@ -129,9 +135,12 @@ check_functional(Atoms,Sig,Prog):-
     (functional ->
         forall(member(Atom1,Atoms),
         \+ (
-            make_atom(Atom2,Atom1),
+            make_atom(Atom2,Atom1), % Atom2:[P|Args], Atom1:[p/4]
             user:func_test(Atom2,TestAtom2,Condition),
             make_atom(TestAtom2,TestAtom1),
+            % writeChk('Atom2',Atom2),
+            % writeChk('TestAtom2',Atom2),
+            % write('Condition',Condition),
             deduce_atom(TestAtom1,Sig,Prog),
             \+ call(Condition)));
         true).
@@ -394,3 +403,6 @@ learn_task(Pos/Neg,Prog1):-
     findall(P/A,(member(sub(_Name,P,A,_Subs),Prog1)),Preds),!,
     assert_body_preds(Preds).
 learn_task(_,[]).
+
+writeChk(Name,Aim) :-
+    format('>>> ~w -----------------------\n~w\n^^^^^^^^^^^^^^^^^^^^^^^^^^^\n',[Name,Aim]).

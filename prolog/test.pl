@@ -1,4 +1,4 @@
-square(X, Y) :- Y is X * X.
-delayed_square(X, Y) :- when(nonvar(X), square(X, Y)).
+test1 :- fail.
+test2 :- true.
 
-tes(X,Y) :- square(X,Y).
+thismain :- call(test2).
