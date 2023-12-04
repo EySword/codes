@@ -81,21 +81,25 @@ prove([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
     prove(Atoms,FullSig,Sig,MaxN,N3,N2,Prog3,Prog2).
 
 prove_aux('@'(Atom),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- !,
+    % write('>>>aux1<<<\n'),
     user:call(Atom). % 如果Atom符合'@'标记的形式，则直接call
 
 prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- % compiled_pred情况下N和Prog直接回传
     nonvar(P), % P需要绑定具体的值
     type(P,A,compiled_pred),!, % 如果P/A已经是compiles_pred，则不再重复寻找?
+    % write('>>>aux2<<<\n'),
     compiled_pred_call(P,Args). % 运行P/A
 
 prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- % body_pred情况下N和Prog直接回传
     (nonvar(P) -> type(P,A,body_pred); true), % 没太懂true的用途
-    body_pred_call(P,Args).
+    % write('>>>aux3<<<\n'),
+    body_pred_call(P,Args). % 测试是否满足已有的BK
 
 prove_aux(p(P,A,Args,Path),FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
     % 先判断是否是ibk_head_pred
     (var(P) -> true; (\+ type(P,A,head_pred), !, type(P,A,ibk_head_pred))), 
     ibk([P|Args],Body,Path), % 调用ibk
+    % write('>>>aux4<<<\n'),
     prove(Body,FullSig,Sig,MaxN,N1,N2,Prog1,Prog2).
 
 prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
@@ -105,18 +109,20 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     member(sub(Name,P,A,Subs),Prog1), % 好像一开始Prog1是空的，可能这里会失败？
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]), % Atom为形式化的metagol:MRule??
     check_recursion(Recursive,MaxN,Atom,Path),
+    % write('>>>aux5<<<\n'),
     prove(Body,FullSig,Sig2,MaxN,N1,N2,Prog1,Prog2).
 
 prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     N1 \== MaxN,
-    format('N1:~w, MaxN:~w\n',[N1,MaxN]),
+    % format('N1:~w, MaxN:~w\n',[N1,MaxN]),
     Atom = [P|Args],
     bind_lower(P,A,FullSig,Sig1,Sig2),
-    format('>> bind lower: \n~w/~w: FullSig: ~w, Sig1: ~w, Sig2: ~w.\n',[P,A,FullSig,Sig1,Sig2]),
+    % format('>> bind lower: \n~w/~w: FullSig: ~w, Sig1: ~w, Sig2: ~w.\n',[P,A,FullSig,Sig1,Sig2]),
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]), % ??
     check_recursion(Recursive,MaxN,Atom,Path),
     check_new_metasub(Name,P,A,Subs,Prog1),
     succ(N1,N3),
+    % write('>>>aux6<<<\n'),
     prove(Body,FullSig,Sig2,MaxN,N3,N2,[sub(Name,P,A,Subs)|Prog1],Prog2).
 
 nproveall(Atoms,Sig,Prog):-
@@ -192,6 +198,7 @@ body_preds:-
     retractall(type(_,_,body_pred)),
     retractall(body_pred_call(P,_)),
     findall(P/A,user:body_pred(P/A),S0),
+    % write(S0),
     assert_body_preds(S0).
 
 % 这个函数就是由S1=[P/A,P/A...]生成：
@@ -208,6 +215,7 @@ assert_body_preds(S1):-
             assert(user:body_pred(P/A)),
             functor(Atom,P,A),
             Atom =.. [P|Args],
+            % format('body Atom is: ~w\n',[Atom]),
             assert((body_pred_call(P,Args):-user:Atom))
         );
             format('% WARNING: ~w does not exist\n',[P/A])

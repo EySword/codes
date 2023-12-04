@@ -5,7 +5,10 @@ learn(Pos1,Neg1,Prog) :-
     setup,
     make_atoms(Pos1,Pos2),
     make_atoms(Neg1,Neg2),
-    proveall(Pos2,Sig,Prog)
+    proveall(Pos2,Sig,Prog),
+    nproveall(Neg2,Sig,Prog),
+    ground(Prog),
+    check_functional(Pos2,Sig,Prog).
 
 make_atoms(Atoms1,Atoms2) :-
     maplist(atom_to_list,Atoms1,Atoms3),
@@ -21,6 +24,12 @@ proveall(Atoms,Sig,Prog) :-
     invented_symbols(MaxN,P/A,Sig),
     assert_sig_types(Sig),
     prove_examples(Atoms,Sig,_Sig,MaxN,0,_N,[],Prog).
+%
+nproveall(Atoms,Sig,Prog) :-
+    forall(
+        member(Atom,Atoms),
+        \+deduce_atom(Atom,Sig,Prog)
+    ).
 
 target_predicate([p(P,A,_Args,[])|_],P/A).
 %
@@ -43,7 +52,13 @@ assert_sig_types(Sig) :-
 %
 prove_examples([],_FullSig,_Sig,_MaxN,N,N,Prog,Prog).
 prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2) :-
-    deduce_Atom(Atom,FullSig,Prog1)%%%%%%%%%
+    deduce_Atom(Atom,FullSig,Prog1), !,
+    check_functional([Atom],Sig,Prog1)，
+    prove_examples(Atoms,FullSig,Sig,MaxN,N1,N2,Prog1,Prog2).
+prove_examples([Atom|Atoms],FullSig,Sig,MaxN,N1,N2,Prog1,Prog2) :-
+    prove([Atom],FullSig,Sig,MaxN,N1,N3,Prog1,Prog3),
+    check_functional([Atom],Sig,Prog3),
+    prove_examples(Atoms,FullSig,Sig,MaxN,N3,N2,Prog3,Prog2).
 
 
 
@@ -255,3 +270,15 @@ check_new_metasub(Name,P,A,Subs,Prog) :-
     last(Subs,X),
     when(ground(X), \+memberchk(sub(Name,_P,A,Subs),Prog)).
 check_new_metasub(_Name,_P,_A,_Subs,_Prog).
+%
+check_functional(Atoms,Sig,Prog) :-
+    (functional ->
+        forall(member(Atom1,Atoms),
+        \+(
+            make_atom(Atom2,Atom1),
+            user:func_test(Atom2,TestAtom2,Condition),
+            make_atom(TestAtom2,TestAtom1),
+            deduce_atom(TestAtom1,Sig,Prog),
+            \+call(Condition)
+        ));
+        true).
