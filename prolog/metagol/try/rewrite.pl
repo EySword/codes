@@ -9,6 +9,9 @@ learn(Pos1,Neg1,Prog) :-
     nproveall(Neg2,Sig,Prog),
     ground(Prog),
     check_functional(Pos2,Sig,Prog).
+learn(_,_,_) :- !,
+    write('% Error!'),
+    false.
 
 make_atoms(Atoms1,Atoms2) :-
     maplist(atom_to_list,Atoms1,Atoms3),
