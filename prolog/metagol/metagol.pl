@@ -108,6 +108,7 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     select_lower(P,A,FullSig,Sig1,Sig2), % 在FullSig中寻找sym(P,A,U)，Sig2为寻找到后，后面的列表
     member(sub(Name,P,A,Subs),Prog1), % 好像一开始Prog1是空的，可能这里会失败？
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]), % Atom为形式化的metagol:MRule??
+    format('Name:~w; Subs:~w; Atom:~w; Body:~w; Rucursive:~w; [Atom|Path]:~w\n',[Name,Subs,Atom,Body,Recursive,[Atom|Path]]),
     check_recursion(Recursive,MaxN,Atom,Path),
     % write('>>>aux5<<<\n'),
     prove(Body,FullSig,Sig2,MaxN,N1,N2,Prog1,Prog2).
