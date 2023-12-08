@@ -90,6 +90,7 @@ prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- % compiled_pred
     % write('>>>aux2<<<\n'),
     compiled_pred_call(P,Args). % 运行P/A
 
+% 这个aux是寻找匹配的bk
 prove_aux(p(P,A,Args,_Path),_FullSig,_Sig,_MaxN,N,N,Prog,Prog):- % body_pred情况下N和Prog直接回传
     % write('>> It\'s aux-body <<\n'),
     (nonvar(P) -> type(P,A,body_pred); true), % 没太懂true的用途
@@ -106,7 +107,7 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig,MaxN,N1,N2,Prog1,Prog2):-
 prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     % write('>> It\'s aux-main-1 <<\n'),
     N1 \== 0,
-    Atom = [P|Args],
+    Atom = [P|Args], % 我要找到符合Args(i,b)的P
     select_lower(P,A,FullSig,Sig1,Sig2), % 在FullSig中寻找sym(P,A,U)，Sig2为寻找到后，后面的列表
     member(sub(Name,P,A,Subs),Prog1), % 好像一开始Prog1是空的，可能这里会失败？
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]), % Atom为形式化的metagol:MRule??
@@ -118,8 +119,8 @@ prove_aux(p(P,A,Args,Path),FullSig,Sig1,MaxN,N1,N2,Prog1,Prog2):-
     % write('>> It\'s aux-main-2 <<\n'),
     N1 \== MaxN,
     % format('N1:~w, MaxN:~w\n',[N1,MaxN]),
-    Atom = [P|Args],
-    bind_lower(P,A,FullSig,Sig1,Sig2),
+    Atom = [P|Args], 
+    bind_lower(P,A,FullSig,Sig1,Sig2), % 选最前面的eSig
     % format('>> bind lower: \n~w/~w: FullSig: ~w, Sig1: ~w, Sig2: ~w.\n',[P,A,FullSig,Sig1,Sig2]),
     metarule(Name,Subs,Atom,Body,Recursive,[Atom|Path]), % ??
     check_recursion(Recursive,MaxN,Atom,Path),
@@ -164,7 +165,7 @@ check_recursion(true,MaxN,Atom,Path):-
 select_lower(P,A,FullSig,_Sig1,Sig2):-
     nonvar(P),!,
     append(_,[sym(P,A,_)|Sig2],FullSig),!. % 找sym(P,A,_)在FullSig中的位置
-select_lower(P,A,_FullSig,Sig1,Sig2):-
+select_lower(P,A,_FullSig,Sig1,Sig2):- % 从Sig1中提取最前面的sym, 剩下的部分为Sig2
     append(_,[sym(P,A,U)|Sig2],Sig1),
     (var(U)-> !,fail;true ).
 
@@ -173,7 +174,7 @@ bind_lower(P,A,FullSig,_Sig1,Sig2):- % 判断sym[P,A,_]是否在FullSig中
     append(_,[sym(P,A,_)|Sig2],FullSig),!.
 bind_lower(P,A,_FullSig,Sig1,Sig2):-
     append(_,[sym(P,A,U)|Sig2],Sig1),
-    (var(U)-> U = 1,!;true).
+    (var(U)-> U = 1,!;true). % 令U=1代表这个sym被用了
 
 check_new_metasub(Name,P,A,Subs,Prog):-
     memberchk(sub(Name,P,A,_),Prog),!,
@@ -219,8 +220,8 @@ assert_body_preds(S1):-
             functor(Atom,P,A),
             Atom =.. [P|Args],
             % format('body Atom is: ~w\n',[Atom]),
-            assert((body_pred_call(P,Args):-user:Atom)),
-            format('>> body pred call(~w,~w)\n',[P,Args])
+            assert((body_pred_call(P,Args):-user:Atom))
+            % format('>> body pred call(~w,~w)\n',[P,Args])
         );
             format('% WARNING: ~w does not exist\n',[P/A])
         )
